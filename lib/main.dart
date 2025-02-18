@@ -1,5 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:gesture_board/deserializedData.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:web_socket_channel/io.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 void main() {
@@ -22,16 +27,152 @@ class GestureBoardApp extends StatelessWidget {
   }
 }
 
-class GestureBoardHome extends StatelessWidget {
+class GestureBoardHome extends StatefulWidget {
   const GestureBoardHome({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
+  _GestureBoardHomeState createState() => _GestureBoardHomeState();
+}
+
+class _GestureBoardHomeState extends State<GestureBoardHome> {
+  WebSocketChannel? _channel;
+  String _webSocketMessage = "Press 'Start Listening' to connect.";
+  bool _isListening = false;
+
+  void _toggleWebSocket() {
+    if (_isListening) {
+      _stopListening();
+    } else {
+      _startListening();
+    }
+  }
+
+  void _startListening() {
+    setState(() {
+      _isListening = true;
+      _webSocketMessage = "Connecting...";
+    });
+
+    try {
+      _channel = IOWebSocketChannel.connect('ws://localhost:8081');
+
+      _channel!.stream.listen(
+        (message) {
+          // print("Message 🚀 $message");
+          List<HandDetection> detections = jsonDecode(message).map<HandDetection>((data)=> HandDetection.fromJson(data)).toList();
+
+
+          setState(() {
+            _webSocketMessage = "Received: $message";
+          });
+          print(detections.length);
+          // detections.forEach((detection)=> {
+            
+
+          // })
+
+          // // ✅ Perform actions based on message content
+          // if (message.contains("OK_SIGN")) {
+          //   _performActionOne();
+          // } else if (message.contains("ACTION_TWO")) {
+          //   _performActionTwo();
+          // }
+        },
+        onError: (error) {
+          setState(() {
+            _webSocketMessage = "WebSocket Error: $error";
+          });
+        },
+        onDone: () {
+          setState(() {
+            _webSocketMessage = "Disconnected.";
+            _isListening = false;
+          });
+        },
+      );
+    } catch (e) {
+      setState(() {
+        _webSocketMessage = "Failed to connect: $e";
+        _isListening = false;
+      });
+    }
+  }
+
+  void _stopListening() {
+    if (_channel != null) {
+      _channel!.sink.close();
+      _channel = null;
+    }
+    setState(() {
+      _isListening = false;
+      _webSocketMessage = "Connection closed.";
+    });
+  }
+
+  void _performActionOne() {
+    print("🔹 Performing Action One!");
+  }
+
+  void _performActionTwo() {
+    print("🔹 Performing Action Two!");
+  }
+
+  @override
+  void dispose() {
+    _stopListening();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(body: ListView(children: [MacbookPro1612()]));
+    return Scaffold(
+      body: Stack(
+        children: [
+          ListView(
+            children: [
+              GestureBoard(), // ✅ Keeps your original UI intact
+              const SizedBox(height: 20),
+            ],
+          ),
+
+          // ✅ WebSocket message display at the bottom (non-intrusive)
+          Positioned(
+            left: 50,
+            bottom: 80,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                _webSocketMessage,
+                style: GoogleFonts.b612Mono(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+
+          // ✅ Toggle WebSocket Listening Button
+          Positioned(
+            left: 50,
+            bottom: 20,
+            child: ElevatedButton(
+              onPressed: _toggleWebSocket,
+              child: Text(_isListening ? "Stop Listening" : "Start Listening"),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
-class MacbookPro1612 extends StatelessWidget {
+class GestureBoard extends StatelessWidget {
   // Function to open a URL
   void _handleClick() async {
     const url = 'https://your-gestureboard-url.com'; // Replace with actual URL
@@ -67,7 +208,6 @@ class MacbookPro1612 extends StatelessWidget {
                 ),
               ),
 
-              // ✅ Clickable Text: "CLICK HERE AND TRY IT →"
               Positioned(
                 left: 137,
                 top: 363,
@@ -76,13 +216,12 @@ class MacbookPro1612 extends StatelessWidget {
                   child: Row(
                     children: [
                       Text(
-                        'CLICK HERE AND TRY IT ',
+                        'WHAT GESTURES YOU CAN USE HERE?',
                         style: GoogleFonts.b612Mono(
                           color: Colors.black,
                           fontSize: 19,
                           fontWeight: FontWeight.w500,
-                          decoration:
-                              TextDecoration.underline, // Optional underline
+                          decoration: TextDecoration.underline,
                         ),
                       ),
                       Icon(
@@ -116,9 +255,8 @@ class MacbookPro1612 extends StatelessWidget {
                   width: 1178,
                   height: 480,
                   fit: BoxFit.cover,
-                  color: const Color(0xFFFF5130), // Apply Orange Color
-                  colorBlendMode:
-                      BlendMode.multiply, // Apply Multiply Blend Mode
+                  color: const Color(0xFFFF5130),
+                  colorBlendMode: BlendMode.multiply,
                 ),
               ),
 
@@ -184,19 +322,6 @@ class MacbookPro1612 extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ),
-                ),
-              ),
-
-              Positioned(
-                left: 842,
-                top: 27,
-                child: Text(
-                  'Home',
-                  style: GoogleFonts.b612Mono(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ),
