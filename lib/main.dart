@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:gesture_board/deserializedData.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -27,11 +26,12 @@ class GestureBoardApp extends StatelessWidget {
   }
 }
 
+enum AppMode { normal, click, scroll, move }
+
 class GestureBoardHome extends StatefulWidget {
   const GestureBoardHome({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _GestureBoardHomeState createState() => _GestureBoardHomeState();
 }
 
@@ -39,6 +39,7 @@ class _GestureBoardHomeState extends State<GestureBoardHome> {
   WebSocketChannel? _channel;
   String _webSocketMessage = "Press 'Start Listening' to connect.";
   bool _isListening = false;
+  AppMode _currentMode = AppMode.normal;
 
   void _toggleWebSocket() {
     if (_isListening) {
@@ -56,19 +57,59 @@ class _GestureBoardHomeState extends State<GestureBoardHome> {
 
     try {
       _channel = IOWebSocketChannel.connect('ws://localhost:8081');
+      // print("Message 🚀 $message");
 
       _channel!.stream.listen(
         (message) {
-          // print("Message 🚀 $message");
-          List<HandDetection> detections = jsonDecode(message).map<HandDetection>((data)=> HandDetection.fromJson(data)).toList();
+          List<HandDetection> detections =
+              (jsonDecode(message) as List)
+                  .map((data) => HandDetection.fromJson(data))
+                  .toList();
 
+   
+          bool leftClickDetected = detections.any(
+            (detection) => detection.gestures.any(
+              (gesture) => gesture.name == "OK_SIGN",
+            ),
+          );
+
+          //Just move mouse, without clicking
+          bool moveDetected = detections.any(
+            (detection) => detection.gestures.any(
+              (gesture) => gesture.name == "U_SIGN",
+            ),
+           );
+
+          bool scrollDetected = detections.any(
+            (detection) => detection.gestures.any(
+              (gesture) => gesture.name == "W_SIGN",
+            ),
+          );
+
+          if (moveDetected) {
+            setState(() {
+              _currentMode = AppMode.move;
+            });
+          }
+
+          if (leftClickDetected) {
+            setState(() {
+              _currentMode = AppMode.click;
+            });
+          }
+
+          if(scrollDetected){
+            setState((){
+            _currentMode = AppMode.scroll;
+            });
+          }
 
           setState(() {
             _webSocketMessage = "Received: $message";
           });
+
           print(detections.length);
           // detections.forEach((detection)=> {
-            
 
           // })
 
@@ -131,7 +172,7 @@ class _GestureBoardHomeState extends State<GestureBoardHome> {
         children: [
           ListView(
             children: [
-              GestureBoard(), // ✅ Keeps your original UI intact
+              GestureBoard(currentMode: _currentMode),
               const SizedBox(height: 20),
             ],
           ),
@@ -173,6 +214,8 @@ class _GestureBoardHomeState extends State<GestureBoardHome> {
 }
 
 class GestureBoard extends StatelessWidget {
+  final AppMode currentMode;
+  GestureBoard({required this.currentMode});
   // Function to open a URL
   void _handleClick() async {
     const url = 'https://your-gestureboard-url.com'; // Replace with actual URL
@@ -207,7 +250,6 @@ class GestureBoard extends StatelessWidget {
                   ),
                 ),
               ),
-
               Positioned(
                 left: 137,
                 top: 363,
@@ -234,6 +276,18 @@ class GestureBoard extends StatelessWidget {
                 ),
               ),
 
+              Positioned(
+                left: 137,
+                top: 400,
+                child: Text(
+                  'Current Mode is: ${currentMode.name}',
+                  style: GoogleFonts.b612Mono(
+                    color: Colors.black,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
               // ✅ Original Hand Image
               Positioned(
                 left: 840,
