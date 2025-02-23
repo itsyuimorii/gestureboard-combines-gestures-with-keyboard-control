@@ -151,13 +151,7 @@ class _GestureBoardHomeState extends State<GestureBoardHome> {
     });
   }
 
-  void _performActionOne() {
-    print("🔹 Performing Action One!");
-  }
-
-  void _performActionTwo() {
-    print("🔹 Performing Action Two!");
-  }
+ 
 
   @override
   void dispose() {
