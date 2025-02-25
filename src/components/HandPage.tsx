@@ -1,9 +1,5 @@
 import { useGestureWebsocket } from '../hook/useGestureWebSocket';
  
-import zod from 'zod';
-
-
-
 
 const HandPage = () => {
   const { detectedHandGesture, isConnected, setIsConnected } = useGestureWebsocket();
