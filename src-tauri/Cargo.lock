@@ -1263,6 +1263,7 @@ dependencies = [
 name = "gestureboard-combines-gestures-with-keyboard-control"
 version = "0.1.0"
 dependencies = [
+ "mouce",
  "serde",
  "serde_json",
  "tauri",
@@ -2112,6 +2113,16 @@ dependencies = [
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "mouce"
+version = "0.2.51"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67bbbd75eec9f37d76663801d4c5664fc1f2fc1e8705f4ec7421a562b69b249f"
+dependencies = [
+ "glob",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

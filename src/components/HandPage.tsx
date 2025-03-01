@@ -1,10 +1,26 @@
+import { useEffect } from "react";
 import { useGestureWebsocket } from "../hook/useGestureWebSocket";
+import { invoke } from "@tauri-apps/api/core";
 
 const HandPage = () => {
   const { parsedHands, isConnected, setIsConnected } = useGestureWebsocket();
 
+
+  useEffect(() => {
+    if (!parsedHands.length) return;
+    parsedHands.forEach((hand) => {
+      hand.gestures.forEach((gesture) => {
+        invoke("greet", { name: gesture.name }).then((message) =>
+          console.log(message)
+        );
+        invoke("move_mouse");
+      });
+    });
+  }, [parsedHands]);
+
   const handleConnection = () => {
-    setIsConnected(!isConnected);
+    // setIsConnected(!isConnected);
+    setIsConnected((prev) => !prev);
   };
 
   return (
