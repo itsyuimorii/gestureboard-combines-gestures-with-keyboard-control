@@ -1,6 +1,3 @@
-use std::thread;
-use std::time::Duration;
-
 use mouce::{Mouse, MouseActions};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -10,9 +7,9 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn move_to(x: i32, y: i32) {
+fn move_relative(x: i32, y: i32) {
     let mouse_manager = Mouse::new();
-    let _ = mouse_manager.move_to(x, y);
+    let _ = mouse_manager.move_relative(x, y);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -20,7 +17,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![greet])
-        .invoke_handler(tauri::generate_handler![move_to])
+        .invoke_handler(tauri::generate_handler![move_relative])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
