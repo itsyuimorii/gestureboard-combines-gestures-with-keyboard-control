@@ -1,22 +1,45 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useGestureWebsocket } from "../hook/useGestureWebSocket";
 import { invoke } from "@tauri-apps/api/core";
 
+
+//1. map the gestures to the mouse mode
+//2. detect the mode we are in and invoke that command
+//3. calculating the distance between the two points
+
 const HandPage = () => {
   const { parsedHands, isConnected, setIsConnected } = useGestureWebsocket();
+  const [isMoving, setIsMoving] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
 
-
+  //1. find the gesture to match the mode
   useEffect(() => {
+    setIsMoving(false);
     if (!parsedHands.length) return;
     parsedHands.forEach((hand) => {
       hand.gestures.forEach((gesture) => {
-        invoke("greet", { name: gesture.name }).then((message) =>
-          console.log(message)
-        );
-        invoke("move_mouse");
+        if (gesture.name === "U_SIGN") {
+          const indexFinger = hand.hand.keypoints.filter(
+            (keypoint) => keypoint.name === "index_finger_tip"
+          );
+          setPosition({
+             x: Math.round(indexFinger[0].x),
+              y: Math.round(indexFinger[0].y),
+
+          });
+          setIsMoving(true);
+        }
       });
     });
   }, [parsedHands]);
+
+  //2. set up mode to invoke the command
+  useEffect(() => {
+    if (isMoving) {
+      console.log("Moving to", position); 
+      invoke("move_to", { x: position.x, y: position.y });
+    }
+  }, [isMoving]);
 
   const handleConnection = () => {
     // setIsConnected(!isConnected);

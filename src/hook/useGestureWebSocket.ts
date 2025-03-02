@@ -57,7 +57,6 @@ export const useGestureWebsocket = () => {
     return { parsedHands, isConnected, setIsConnected };
   }
   const parsedResult = handsSchema.safeParse(JSON.parse(lastMessage?.data));
-  console.log(  JSON.parse(lastMessage?.data))
 
   if (parsedResult.success) {
     parsedHands = parsedResult.data;
