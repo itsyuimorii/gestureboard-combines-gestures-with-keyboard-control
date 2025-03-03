@@ -42,12 +42,14 @@ const HandPage = () => {
     let newPosition = null;
 
     parsedHands.forEach((hand) => {
-      hand.gestures.forEach((gesture) => {
+      // TODO should filter to only hand gestures we are targeting
+      // before reducing to the highest score
+      const gesture = hand.gestures.reduce((prev, current) =>
+        prev.score > current.score ? prev : current)
         if (gesture.name === "W_SIGN") {
           const indexFinger = hand.hand.keypoints.find(
             (keypoint) => keypoint.name === "index_finger_tip"
           );
-
           if (indexFinger) {
             newPosition = {
               x: Math.round(indexFinger.x),
@@ -71,7 +73,6 @@ const HandPage = () => {
 
           newState = StateType.MOVING;
         }
-      });
     });
 
     if (newState !== state.current.stateType) {
