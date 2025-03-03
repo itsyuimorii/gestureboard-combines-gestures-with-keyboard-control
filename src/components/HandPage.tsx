@@ -2,17 +2,44 @@ import { useEffect, useState, useRef } from "react";
 import { useGestureWebsocket } from "../hook/useGestureWebSocket";
 import { invoke } from "@tauri-apps/api/core";
 
+enum StateType {
+  IDLE = "IDLE",
+  MOVING = "MOVING",
+  SCROLLING = "SCROLLING",
+  CLICKING = "CLICKING",
+}
+
+type State = {
+  firstPosition: { x: number; y: number } | null;
+  secondPosition: { x: number; y: number } | null;
+  stateType: StateType;
+  lastUpdated: number;
+};
+
 const HandPage = () => {
   const { parsedHands, isConnected, setIsConnected } = useGestureWebsocket();
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const lastPosition = useRef({ x: 0, y: 0 });
-  const isMovingRef = useRef(false);
-  const isScrollRef = useRef(false);
-  const animationFrameRef = useRef<number | null>(null);
 
-  // 🔹 Process WebSocket messages efficiently (Throttle updates)
+  const state = useRef<State>({
+    firstPosition: null,
+    secondPosition: null,
+    stateType: StateType.IDLE,
+    lastUpdated: Date.now(),
+  });
+
   useEffect(() => {
     if (!parsedHands.length) return;
+
+    if (state.current.lastUpdated + 2000 < Date.now()) {
+      state.current = {
+        firstPosition: null,
+        secondPosition: null,
+        stateType: StateType.IDLE,
+        lastUpdated: Date.now(),
+      };
+    }
+
+    let newState = StateType.IDLE;
+    let newPosition = null;
 
     parsedHands.forEach((hand) => {
       hand.gestures.forEach((gesture) => {
@@ -22,112 +49,107 @@ const HandPage = () => {
           );
 
           if (indexFinger) {
-            const newPosition = {
+            newPosition = {
               x: Math.round(indexFinger.x),
               y: Math.round(indexFinger.y),
             };
-
-            if (
-              newPosition.x !== lastPosition.current.x ||
-              newPosition.y !== lastPosition.current.y
-            ) {
-              setPosition(newPosition);
-              isScrollRef.current = true;
-            }
           }
+          newState = StateType.SCROLLING;
         } else if (gesture.name === "OK_SIGN") {
-          invoke("mouse_left_click").catch((err) =>
-            console.error("Invoke error:", err)
-          );
+          newState = StateType.CLICKING;
         } else if (gesture.name === "U_SIGN") {
           const indexFinger = hand.hand.keypoints.find(
             (keypoint) => keypoint.name === "index_finger_tip"
           );
 
           if (indexFinger) {
-            const newPosition = {
+            newPosition = {
               x: Math.round(indexFinger.x),
               y: Math.round(indexFinger.y),
             };
-
-            if (
-              newPosition.x !== lastPosition.current.x ||
-              newPosition.y !== lastPosition.current.y
-            ) {
-              setPosition(newPosition);
-              isMovingRef.current = true;
-            }
           }
+
+          newState = StateType.MOVING;
         }
       });
     });
+
+    if (newState !== state.current.stateType) {
+      state.current.firstPosition = null;
+      state.current.secondPosition = null;
+      state.current.stateType = newState;
+    }
+
+    if (state.current.firstPosition === null) {
+      state.current.firstPosition = newPosition;
+    } else if (state.current.secondPosition === null) {
+      state.current.secondPosition = newPosition;
+    }
+
+    state.current.lastUpdated = Date.now();
+
+    processState();
   }, [parsedHands]); // ✅ Runs only when `parsedHands` updates
 
-  // 🔹 Main loop using requestAnimationFrame (Prevents excessive updates)
-  useEffect(() => {
-    const moveCursor = () => {
-      if (!isMovingRef.current && !isScrollRef.current) {
-        // lastPosition.current = { x: 0, y: 0 };
+  const processState = () => {
+    if (state.current.stateType === StateType.IDLE) {
+      return;
+    }
+
+    if (state.current.stateType === StateType.MOVING) {
+      if (
+        state.current.firstPosition === null ||
+        state.current.secondPosition === null
+      ) {
         return;
       }
+      const deltaX =
+        state.current.secondPosition.x - state.current.firstPosition.x;
+      const deltaY =
+        state.current.secondPosition.y - state.current.firstPosition.y;
 
-      let deltaX = position.x - lastPosition.current.x;
-      console.log(position);
-      let deltaY = position.y - lastPosition.current.y;
-      if (Math.abs(deltaX) > 100) {
-        deltaX = 0;
-        deltaY = 0;
-      }
-      if (Math.abs(deltaY) > 100) {
-        deltaX = 0;
-        deltaY = 0;
-      }
+      console.log("Moving by:", deltaX, deltaY);
+      invoke("move_relative", { x: deltaX, y: deltaY }).catch((err) =>
+        console.error("Invoke error:", err)
+      );
+    }
 
-      // TODO add sensitivity control
-      deltaX *= 4;
-      deltaY *= 4;
-
-      lastPosition.current = position;
-
-      if (deltaX === 0 && deltaY === 0) {
-        isMovingRef.current = false;
-        isScrollRef.current = false;
+    if (state.current.stateType === StateType.SCROLLING) {
+      if (
+        state.current.firstPosition === null ||
+        state.current.secondPosition === null
+      ) {
         return;
       }
+      const deltaY =
+        state.current.secondPosition.y - state.current.firstPosition.y;
 
-      
-      if (isMovingRef.current) {
-        console.log("Moving by:", deltaX, deltaY);
-        invoke("move_relative", { x: deltaX, y: deltaY }).catch((err) =>
+      // TODO pass amount to command
+      if (deltaY < 0) {
+        console.log("Scrolling up");
+        invoke("scroll_up").catch((err) => console.error("Invoke error:", err));
+      } else {
+        console.log("Scrolling down");
+        invoke("scroll_down").catch((err) =>
           console.error("Invoke error:", err)
         );
       }
+    }
 
-      if (isScrollRef.current) {
-        if (deltaY < 0) {
-          console.log("Scrolling up");
-          invoke("scroll_up").catch((err) =>
-            console.error("Invoke error:", err)
-          );
-        } else {
-          console.log("Scrolling down");
-          invoke("scroll_down").catch((err) =>
-            console.error("Invoke error:", err)
-          );
-        }
-      }
-      isMovingRef.current = false;
-      isScrollRef.current = false;
-      animationFrameRef.current = requestAnimationFrame(moveCursor);
-    };
-    animationFrameRef.current = requestAnimationFrame(moveCursor);
+    if (state.current.stateType === StateType.CLICKING) {
+      console.log("Clicking");
+      invoke("mouse_left_click").catch((err) =>
+        console.error("Invoke error:", err)
+      );
+    }
 
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
+    state.current = {
+      firstPosition: null,
+      secondPosition: null,
+      stateType: StateType.IDLE,
+      lastUpdated: Date.now(),
     };
-  }, [position]); // ✅ Runs only when position updates
+  };
 
   const handleConnection = () => {
     setIsConnected((prev) => !prev);
