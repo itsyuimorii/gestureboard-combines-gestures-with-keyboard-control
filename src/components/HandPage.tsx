@@ -7,6 +7,7 @@ const HandPage = () => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const lastPosition = useRef({ x: 0, y: 0 });
   const isMovingRef = useRef(false);
+  const isScrollRef = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
 
   // 🔹 Process WebSocket messages efficiently (Throttle updates)
@@ -15,7 +16,30 @@ const HandPage = () => {
 
     parsedHands.forEach((hand) => {
       hand.gestures.forEach((gesture) => {
-        if (gesture.name === "U_SIGN") {
+        if (gesture.name === "W_SIGN") {
+          const indexFinger = hand.hand.keypoints.find(
+            (keypoint) => keypoint.name === "index_finger_tip"
+          );
+
+          if (indexFinger) {
+            const newPosition = {
+              x: Math.round(indexFinger.x),
+              y: Math.round(indexFinger.y),
+            };
+
+            if (
+              newPosition.x !== lastPosition.current.x ||
+              newPosition.y !== lastPosition.current.y
+            ) {
+              setPosition(newPosition);
+              isScrollRef.current = true;
+            }
+          }
+        } else if (gesture.name === "OK_SIGN") {
+          invoke("mouse_left_click").catch((err) =>
+            console.error("Invoke error:", err)
+          );
+        } else if (gesture.name === "U_SIGN") {
           const indexFinger = hand.hand.keypoints.find(
             (keypoint) => keypoint.name === "index_finger_tip"
           );
@@ -42,13 +66,13 @@ const HandPage = () => {
   // 🔹 Main loop using requestAnimationFrame (Prevents excessive updates)
   useEffect(() => {
     const moveCursor = () => {
-      if (!isMovingRef.current) {
+      if (!isMovingRef.current && !isScrollRef.current) {
         // lastPosition.current = { x: 0, y: 0 };
         return;
       }
 
       let deltaX = position.x - lastPosition.current.x;
-      console.log(position)
+      console.log(position);
       let deltaY = position.y - lastPosition.current.y;
       if (Math.abs(deltaX) > 100) {
         deltaX = 0;
@@ -61,18 +85,39 @@ const HandPage = () => {
 
       // TODO add sensitivity control
       deltaX *= 4;
-      deltaY *= 4
+      deltaY *= 4;
 
-      isMovingRef.current = false;
       lastPosition.current = position;
 
       if (deltaX === 0 && deltaY === 0) {
+        isMovingRef.current = false;
+        isScrollRef.current = false;
         return;
       }
-      console.log("Moving by:", deltaX, deltaY);
-      invoke("move_relative", { x: deltaX, y: deltaY }).catch((err) =>
-        console.error("Invoke error:", err)
-      );
+
+      
+      if (isMovingRef.current) {
+        console.log("Moving by:", deltaX, deltaY);
+        invoke("move_relative", { x: deltaX, y: deltaY }).catch((err) =>
+          console.error("Invoke error:", err)
+        );
+      }
+
+      if (isScrollRef.current) {
+        if (deltaY < 0) {
+          console.log("Scrolling up");
+          invoke("scroll_up").catch((err) =>
+            console.error("Invoke error:", err)
+          );
+        } else {
+          console.log("Scrolling down");
+          invoke("scroll_down").catch((err) =>
+            console.error("Invoke error:", err)
+          );
+        }
+      }
+      isMovingRef.current = false;
+      isScrollRef.current = false;
       animationFrameRef.current = requestAnimationFrame(moveCursor);
     };
     animationFrameRef.current = requestAnimationFrame(moveCursor);
