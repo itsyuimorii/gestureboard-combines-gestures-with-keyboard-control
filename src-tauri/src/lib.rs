@@ -21,17 +21,13 @@ fn mouse_left_click() {
 #[tauri::command]
 fn scroll_up() {
     let mouse_manager = Mouse::new();
-    // for _ in 0..5 {
-        let _ = mouse_manager.scroll_wheel(&ScrollDirection::Up);
-    // }
+    let _ = mouse_manager.scroll_wheel(&ScrollDirection::Left);
 }
 
 #[tauri::command]
 fn scroll_down() {
     let mouse_manager = Mouse::new();
-    // for _ in 0..5 {
-        let _ = mouse_manager.scroll_wheel(&ScrollDirection::Down);
-    // }
+    let _ = mouse_manager.scroll_wheel(&ScrollDirection::Right);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -46,7 +46,7 @@ const HandPage = () => {
       // before reducing to the highest score
       const gesture = hand.gestures.reduce((prev, current) =>
         prev.score > current.score ? prev : current)
-        if (gesture.name === "W_SIGN") {
+        if (gesture.name === "FOUR_FINGER_UP") {
           const indexFinger = hand.hand.keypoints.find(
             (keypoint) => keypoint.name === "index_finger_tip"
           );
