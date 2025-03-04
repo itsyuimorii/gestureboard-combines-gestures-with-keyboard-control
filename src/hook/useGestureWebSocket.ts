@@ -32,6 +32,9 @@ const handsSchema = zod.array(
   })
 );
 
+type ParsedHandsType = zod.infer<typeof handsSchema>;
+export type HandType = ParsedHandsType[0]["hand"];
+
 const SOCKET_URL = "ws://localhost:8081";
 
 export const useGestureWebsocket = () => {
@@ -47,13 +50,9 @@ export const useGestureWebsocket = () => {
     isConnected
   );
   //const parsedHands = handsSchema.safeParse(lastMessage?.data).data || [];
-  type ParsedHandsType = zod.infer<typeof handsSchema>;
-  
- 
 
   let parsedHands: ParsedHandsType = [];
-
-  if(!lastMessage?.data){
+  if (!lastMessage?.data) {
     return { parsedHands, isConnected, setIsConnected };
   }
   const parsedResult = handsSchema.safeParse(JSON.parse(lastMessage?.data));

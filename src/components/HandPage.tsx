@@ -1,12 +1,15 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useGestureWebsocket } from "../hook/useGestureWebSocket";
 import { invoke } from "@tauri-apps/api/core";
+import { HandType } from "../hook/useGestureWebSocket";
 
 enum StateType {
   IDLE = "IDLE",
   MOVING = "MOVING",
   SCROLLING = "SCROLLING",
   CLICKING = "CLICKING",
+  PRESS = "PRESS",
+  RELEASE = "RELEASE",
 }
 
 type State = {
@@ -14,6 +17,16 @@ type State = {
   secondPosition: { x: number; y: number } | null;
   stateType: StateType;
   lastUpdated: number;
+};
+const getHandPosition = (hand: HandType) => {
+  const detectedWrist = hand.keypoints.find(
+    (keypoint) => keypoint.name === "wrist"
+  );
+  if (!detectedWrist) return null;
+  return {
+    x: Math.round(detectedWrist.x),
+    y: Math.round(detectedWrist.y),
+  };
 };
 
 const HandPage = () => {
@@ -41,38 +54,24 @@ const HandPage = () => {
     let newState = StateType.IDLE;
     let newPosition = null;
 
-    parsedHands.forEach((hand) => {
+    parsedHands.forEach((parsedHand) => {
       // TODO should filter to only hand gestures we are targeting
       // before reducing to the highest score
-      const gesture = hand.gestures.reduce((prev, current) =>
-        prev.score > current.score ? prev : current)
-        if (gesture.name === "FOUR_FINGER_UP") {
-          const indexFinger = hand.hand.keypoints.find(
-            (keypoint) => keypoint.name === "index_finger_tip"
-          );
-          if (indexFinger) {
-            newPosition = {
-              x: Math.round(indexFinger.x),
-              y: Math.round(indexFinger.y),
-            };
-          }
-          newState = StateType.SCROLLING;
-        } else if (gesture.name === "OK_SIGN") {
-          newState = StateType.CLICKING;
-        } else if (gesture.name === "U_SIGN") {
-          const indexFinger = hand.hand.keypoints.find(
-            (keypoint) => keypoint.name === "index_finger_tip"
-          );
-
-          if (indexFinger) {
-            newPosition = {
-              x: Math.round(indexFinger.x),
-              y: Math.round(indexFinger.y),
-            };
-          }
-
-          newState = StateType.MOVING;
-        }
+      const gesture = parsedHand.gestures.reduce((prev, current) =>
+        prev.score > current.score ? prev : current
+      );
+      if (gesture.name === "FOUR_FINGER_UP") {
+        newPosition = getHandPosition(parsedHand.hand);
+        newState = StateType.SCROLLING;
+      } else if (gesture.name === "OK_SIGN") {
+        newState = StateType.CLICKING;
+      } else if (gesture.name === "U_SIGN") {
+        newPosition = getHandPosition(parsedHand.hand);
+        newState = StateType.MOVING;
+      } else if (gesture.name === "DRAG_SIGN") {
+        newPosition = getHandPosition(parsedHand.hand);
+        newState = StateType.PRESS;
+      }
     });
 
     if (newState !== state.current.stateType) {
@@ -83,14 +82,25 @@ const HandPage = () => {
 
     if (state.current.firstPosition === null) {
       state.current.firstPosition = newPosition;
-    } else if (state.current.secondPosition === null) {
+    } else if (
+      state.current.secondPosition === null &&
+      newPosition &&
+      isDifferent(state.current.firstPosition, newPosition)
+    ) {
       state.current.secondPosition = newPosition;
     }
 
     state.current.lastUpdated = Date.now();
 
     processState();
-  }, [parsedHands]); // ✅ Runs only when `parsedHands` updates
+  }, [parsedHands]);
+
+  const isDifferent = (
+    first: { x: number; y: number },
+    second: { x: number; y: number }
+  ) => {
+    return Math.abs(first.x - second.x) > 1 || Math.abs(first.y - second.y) > 1;
+  };
 
   const processState = () => {
     if (state.current.stateType === StateType.IDLE) {
