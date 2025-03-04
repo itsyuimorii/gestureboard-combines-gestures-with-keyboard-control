@@ -71,6 +71,8 @@ const HandPage = () => {
       } else if (gesture.name === "DRAG_SIGN") {
         newPosition = getHandPosition(parsedHand.hand);
         newState = StateType.PRESS;
+      } else if (gesture.name === "FULL_HAND_UP") {
+        newState = StateType.RELEASE;
       }
     });
 
@@ -105,6 +107,33 @@ const HandPage = () => {
   const processState = () => {
     if (state.current.stateType === StateType.IDLE) {
       return;
+    }
+
+    if (state.current.stateType === StateType.PRESS ) {
+      invoke("mouse_left_press").catch((err) =>
+        console.error("Invoke error:", err)
+      );
+      if (
+        state.current.firstPosition === null ||
+        state.current.secondPosition === null
+      ) {
+        return;
+      }
+      const deltaX =
+        state.current.secondPosition.x - state.current.firstPosition.x;
+      const deltaY =
+        state.current.secondPosition.y - state.current.firstPosition.y;
+
+      console.log("Moving by:", deltaX, deltaY);
+      invoke("move_relative", { x: deltaX, y: deltaY }).catch((err) =>
+        console.error("Invoke error:", err)
+      );
+    }
+
+    if(state.current.stateType === StateType.RELEASE){
+      invoke("mouse_left_release").catch((err) =>
+        console.error("Invoke error:", err)
+      );
     }
 
     if (state.current.stateType === StateType.MOVING) {

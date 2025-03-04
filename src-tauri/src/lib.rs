@@ -1,11 +1,5 @@
 // use ::{common::MouseButton, common::ScrollDirection, Mouse, MouseActions};
-use enigo::{
-    Button,
-    Direction,
-    Enigo, Mouse, Settings,
-    Coordinate,
-    Axis,
-};
+use enigo::{Axis, Button, Coordinate, Direction, Enigo, Mouse, Settings};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -28,13 +22,25 @@ fn mouse_left_click() {
 #[tauri::command]
 fn scroll_up() {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
-      enigo.scroll(2, Axis::Vertical).unwrap();
+    enigo.scroll(2, Axis::Vertical).unwrap();
 }
 
 #[tauri::command]
 fn scroll_down() {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
-      enigo.scroll(-2, Axis::Vertical).unwrap();
+    enigo.scroll(-2, Axis::Vertical).unwrap();
+}
+
+#[tauri::command]
+fn mouse_left_press() {
+    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    enigo.button(Button::Left, Direction::Press).unwrap();
+}
+
+#[tauri::command]
+fn mouse_left_release() {
+    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    enigo.button(Button::Left, Direction::Release).unwrap();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -52,7 +58,9 @@ pub fn run() {
             move_relative,
             mouse_left_click,
             scroll_up,
-            scroll_down
+            scroll_down,
+            mouse_left_press,
+            mouse_left_release
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
